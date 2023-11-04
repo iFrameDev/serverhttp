@@ -16,8 +16,6 @@ const dbName = 'db_game';
 // Create a new MongoClient
 const client = new MongoClient(url);
 
-var db = null;
-
 
 
 app.listen(3000,"localhost", async function() {
@@ -34,36 +32,34 @@ app.listen(3000,"localhost", async function() {
 app.use('/', require('./src/module_bank/bank'))
 app.use('/', require('./src/module_character/characters_stats'))
 
-app.get('/', function(req, res) {
+app.get('/', async function(req, res) {
+    const query = { "user_deviceid": req.query["name"] };
+    console.log("device id : " + req.query["name"]);
+    
+    try {
+        const result = await global.db.collection("user").findOne(query);
+        if (result) {
+            console.log('good result' + result._id.toString());
+            res.send(result._id.toString());
+        } else {
+            console.log('not result');
+            const newAccount = {
+                "user_deviceid": req.query["name"],
+                "user_date": new Date(),
+                "user_ban": false,
+                "user_rang": 0
+            };
 
-    client.connect(function(err) {
-
-        console.log("Connected successfully to server");
-      
-        const db = client.db(dbName);
-        const query = { "user_deviceid": req.query["name"] };
-        console.log("device id : " + req.query["name"]);
-        db.collection("user").findOne(query, function(error, result) {
-            if (error) throw error;
-            if(result)
-            {
-                res.send(result._id.toString());             
-            }
-            else
-            {
-                const newAccount = {
-                    "user_deviceid" : req.query["name"],
-                    "user_date": new Date(),
-                    "user_ban": false,
-                    "user_rang": 0
-                };
-
-                db.collection('user').insertOne(newAccount)
-                .then(result => res.send(result.insertedId))
-            }        
-        });
-    });
+            const insertResult = await global.db.collection('user').insertOne(newAccount);
+            res.send(insertResult.insertedId);
+        }
+    } catch (error) {
+        console.error('Error in MongoDB query:', error);
+        res.status(500).send('Internal Server Error');
+    }
 });
+
+
 
 app.get('/checkcharacter', function(req, res) {
 
@@ -234,5 +230,5 @@ app.get('/deleteItemToInventory', function(req, res) {
 });
 
 
-module.exports.db = db;
+
 
